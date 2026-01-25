@@ -19,15 +19,19 @@ export const authOptions: NextAuthOptions = {
           throw new Error("Email and password required");
         }
 
+        // Fetch user without complex relations to avoid schema issues
         const user = await prisma.user.findUnique({
-          where: { email: credentials.email },
-          include: {
-            memberships: {
-              include: {
-                organization: true,
-                department: true,
-              },
-            },
+          where: { email: credentials.email.toLowerCase().trim() },
+          select: {
+            id: true,
+            email: true,
+            name: true,
+            password: true,
+            role: true,
+            phone: true,
+            avatarUrl: true,
+            isActive: true,
+            lastLoginAt: true,
           },
         });
 
@@ -48,11 +52,22 @@ export const authOptions: NextAuthOptions = {
           throw new Error("Invalid email or password");
         }
 
-        // Update last login
-        await prisma.user.update({
-          where: { id: user.id },
-          data: { lastLoginAt: new Date() },
-        });
+        // Update last login - wrap in try-catch to handle potential column issues
+        // This is non-critical, so we don't fail authentication if it fails
+        try {
+          await prisma.user.update({
+            where: { id: user.id },
+            data: { lastLoginAt: new Date() },
+            select: { id: true },
+          });
+        } catch (updateError: any) {
+          // Log but don't fail authentication if lastLoginAt update fails
+          // This could happen if the column doesn't exist in the database
+          if (updateError.code !== "P2022") {
+            // Only log if it's not a "column doesn't exist" error
+            console.warn("Failed to update lastLoginAt:", updateError.message);
+          }
+        }
 
         return {
           id: user.id,

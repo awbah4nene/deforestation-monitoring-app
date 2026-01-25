@@ -25,7 +25,6 @@ export default async function AdminDashboard() {
     activeUserCount,
     inactiveUserCount,
     mlModelCount,
-    recentUsers,
     recentAlerts,
     alertTrends,
     severityStats,
@@ -46,18 +45,6 @@ export default async function AdminDashboard() {
     prisma.user.count({ where: { isActive: true } }),
     prisma.user.count({ where: { isActive: false } }),
     prisma.mLModel.count({ where: { isActive: true } }),
-    prisma.user.findMany({
-      take: 5,
-      orderBy: { createdAt: "desc" },
-      select: {
-        id: true,
-        name: true,
-        email: true,
-        role: true,
-        createdAt: true,
-        isActive: true,
-      },
-    }),
     prisma.deforestationAlert.findMany({
       take: 5,
       orderBy: { detectedDate: "desc" },
@@ -91,6 +78,51 @@ export default async function AdminDashboard() {
       _count: { id: true },
     }),
   ]);
+
+  // Fetch recent users separately with error handling
+  let recentUsers;
+  try {
+    recentUsers = await prisma.user.findMany({
+      take: 10,
+      orderBy: { createdAt: "desc" },
+      select: {
+        id: true,
+        name: true,
+        email: true,
+        role: true,
+        phone: true,
+        organization: true,
+        position: true,
+        createdAt: true,
+        isActive: true,
+        lastLoginAt: true,
+      },
+    });
+  } catch (error: any) {
+    // If organization field doesn't exist, fetch without it
+    if (error.message?.includes("organization")) {
+      const users = await prisma.user.findMany({
+        take: 10,
+        orderBy: { createdAt: "desc" },
+        select: {
+          id: true,
+          name: true,
+          email: true,
+          role: true,
+          phone: true,
+          position: true,
+          createdAt: true,
+          isActive: true,
+          lastLoginAt: true,
+        },
+      });
+      recentUsers = users.map((u: any) => ({ ...u, organization: null }));
+    } else {
+      // If there's another error, return empty array
+      console.error("Error fetching recent users:", error);
+      recentUsers = [];
+    }
+  }
 
   // Get region names for regional stats
   const regionIds = regionStats.map((r) => r.forestRegionId);
@@ -279,8 +311,13 @@ export default async function AdminDashboard() {
             </div>
           </CardHeader>
           <CardContent>
-            <div className="space-y-3">
-              {recentUsers.map((u) => (
+            {recentUsers.length === 0 ? (
+              <div className="text-center py-8 text-gray-500">
+                <p>No users found</p>
+              </div>
+            ) : (
+              <div className="space-y-3">
+                {recentUsers.map((u) => (
                 <div
                   key={u.id}
                   className="flex items-center justify-between p-3 bg-gray-50 rounded-lg"

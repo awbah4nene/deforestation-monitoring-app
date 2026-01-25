@@ -17,9 +17,13 @@ export async function POST(request: NextRequest) {
     const body = await request.json();
     const validatedData = registerSchema.parse(body);
 
-    // Check if user already exists
+    // Check if user already exists - use select to avoid column issues
     const existingUser = await prisma.user.findUnique({
-      where: { email: validatedData.email },
+      where: { email: validatedData.email.toLowerCase().trim() },
+      select: {
+        id: true,
+        email: true,
+      },
     });
 
     if (existingUser) {
@@ -35,10 +39,10 @@ export async function POST(request: NextRequest) {
     // Create user
     const user = await prisma.user.create({
       data: {
-        email: validatedData.email,
+        email: validatedData.email.toLowerCase().trim(),
         password: hashedPassword,
-        name: validatedData.name,
-        phone: validatedData.phone,
+        name: validatedData.name.trim(),
+        phone: validatedData.phone?.trim() || null,
         role: validatedData.role || UserRole.FIELD_OFFICER,
         isActive: true,
       },

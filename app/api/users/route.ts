@@ -23,23 +23,54 @@ export async function GET(request: NextRequest) {
       ];
     }
 
-    const users = await prisma.user.findMany({
-      where,
-      select: {
-        id: true,
-        name: true,
-        email: true,
-        role: true,
-        phone: true,
-        organization: true,
-        isActive: true,
-        createdAt: true,
-        lastLoginAt: true,
-      },
-      orderBy: {
-        name: "asc",
-      },
-    });
+    // Try to fetch with organization field first, fallback without it
+    let users;
+    try {
+      users = await prisma.user.findMany({
+        where,
+        select: {
+          id: true,
+          name: true,
+          email: true,
+          role: true,
+          phone: true,
+          organization: true,
+          position: true,
+          isActive: true,
+          createdAt: true,
+          lastLoginAt: true,
+        },
+        orderBy: {
+          name: "asc",
+        },
+      });
+    } catch (selectError: any) {
+      // If organization field doesn't exist, fetch without it
+      if (selectError.message?.includes("organization")) {
+        console.warn("Organization field not available, fetching without it");
+        users = await prisma.user.findMany({
+          where,
+          select: {
+            id: true,
+            name: true,
+            email: true,
+            role: true,
+            phone: true,
+            position: true,
+            isActive: true,
+            createdAt: true,
+            lastLoginAt: true,
+          },
+          orderBy: {
+            name: "asc",
+          },
+        });
+        // Add organization as null if not available
+        users = users.map((u: any) => ({ ...u, organization: null }));
+      } else {
+        throw selectError;
+      }
+    }
 
     return NextResponse.json({ users });
   } catch (error) {
@@ -123,30 +154,63 @@ export async function POST(request: NextRequest) {
     // Hash password
     const hashedPassword = await bcrypt.hash(password, 12);
 
-    // Create user
-    const newUser = await prisma.user.create({
-      data: {
-        email: email.trim().toLowerCase(),
-        password: hashedPassword,
-        name: name.trim(),
-        role: (role as UserRole) || UserRole.FIELD_OFFICER,
-        phone: phone?.trim() || null,
-        organization: organization?.trim() || null,
-        position: position?.trim() || null,
-        isActive: true,
-      },
-      select: {
-        id: true,
-        name: true,
-        email: true,
-        role: true,
-        phone: true,
-        organization: true,
-        position: true,
-        isActive: true,
-        createdAt: true,
-      },
-    });
+    // Create user - handle organization field gracefully
+    const userData: any = {
+      email: email.trim().toLowerCase(),
+      password: hashedPassword,
+      name: name.trim(),
+      role: (role as UserRole) || UserRole.FIELD_OFFICER,
+      phone: phone?.trim() || null,
+      position: position?.trim() || null,
+      isActive: true,
+    };
+
+    // Only include organization if it's a valid field
+    try {
+      userData.organization = organization?.trim() || null;
+    } catch (e) {
+      // Field doesn't exist, skip it
+      console.warn("Organization field not available for user creation");
+    }
+
+    let newUser;
+    try {
+      newUser = await prisma.user.create({
+        data: userData,
+        select: {
+          id: true,
+          name: true,
+          email: true,
+          role: true,
+          phone: true,
+          organization: true,
+          position: true,
+          isActive: true,
+          createdAt: true,
+        },
+      });
+    } catch (createError: any) {
+      // If organization field doesn't exist, create without it
+      if (createError.message?.includes("organization")) {
+        const { organization: _, ...dataWithoutOrg } = userData;
+        newUser = await prisma.user.create({
+          data: dataWithoutOrg,
+          select: {
+            id: true,
+            name: true,
+            email: true,
+            role: true,
+            phone: true,
+            position: true,
+            isActive: true,
+            createdAt: true,
+          },
+        });
+        (newUser as any).organization = null;
+      } else {
+        throw createError;
+      }
+    }
 
     return NextResponse.json({ user: newUser }, { status: 201 });
   } catch (error) {

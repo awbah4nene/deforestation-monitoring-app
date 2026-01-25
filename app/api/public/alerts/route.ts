@@ -17,15 +17,6 @@ export async function GET(request: NextRequest) {
           notIn: ["RESOLVED", "FALSE_ALARM"],
         },
       },
-      include: {
-        forestRegion: {
-          select: {
-            id: true,
-            name: true,
-            district: true,
-          },
-        },
-      },
       select: {
         id: true,
         alertCode: true,
