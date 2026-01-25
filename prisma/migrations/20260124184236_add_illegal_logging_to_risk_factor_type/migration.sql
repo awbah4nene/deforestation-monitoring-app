@@ -1,0 +1,8 @@
+-- AlterEnum
+ALTER TYPE "CampaignType" ADD VALUE 'PUBLIC_AWARENESS';
+
+-- AlterEnum
+ALTER TYPE "PermitType" ADD VALUE 'LOGGING';
+
+-- AlterEnum
+ALTER TYPE "RiskFactorType" ADD VALUE 'ILLEGAL_LOGGING';

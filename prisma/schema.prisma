@@ -1,0 +1,2280 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+}
+
+model User {
+  id                      String                   @id @default(cuid())
+  email                   String                   @unique
+  name                    String?
+  password                String
+  role                    UserRole                 @default(FIELD_OFFICER)
+  phone                   String?
+  organization            String?
+  position                String?
+  avatarUrl               String?
+  emailVerified           DateTime?
+  isActive                Boolean                  @default(true)
+  lastLoginAt             DateTime?
+  createdAt               DateTime                 @default(now())
+  updatedAt               DateTime                 @updatedAt
+  alertComments           AlertComment[]
+  alertSubscriptions      AlertSubscription[]
+  auditLogs               AuditLog[]
+  dashboardWidgets        DashboardWidget[]
+  deforestationAlerts     DeforestationAlert[]
+  devices                 Device[]
+  casesAssigned           EnforcementCase[]        @relation("CaseAssignedTo")
+  casesOpened             EnforcementCase[]        @relation("CaseOpenedBy")
+  exportedReports         ExportJob[]
+  fieldReports            FieldReport[]
+  memberships             Membership[]
+  notifications           Notification[]
+  trainings               TrainingAttendance[]
+  accounts                Account[]
+  emailVerificationTokens EmailVerificationToken[]
+  passwordResetTokens     PasswordResetToken[]
+  sessions                Session[]
+
+  // Additional models relationships
+  assignedCommunityReports              CommunityReport[]      @relation("CommunityReportAssignee")
+  verifiedCommunityReports              CommunityReport[]      @relation("CommunityReportVerifier")
+  patrolRoutesAssignedTo                PatrolRoute[]          @relation("PatrolAssignedUsers")
+  evidenceCollectionsAsCollector        EvidenceCollection[]   @relation("EvidenceCollectionCollector")
+  evidenceVerificationsAsVerifier       EvidenceCollection[]   @relation("EvidenceCollectionVerifier")
+  validationResultsAsValidator          ValidationResult[]     @relation("ValidationResultValidator")
+  validationReviewsAsReviewer           ValidationResult[]     @relation("ValidationResultReviewer")
+  predictionValidationsAsValidator      PredictionValidation[] @relation("PredictionValidationValidator")
+  predictionValidationReviewsAsReviewer PredictionValidation[] @relation("PredictionValidationReviewer")
+  awarenessCampaignsCoordinated         AwarenessCampaign[]    @relation("CampaignCoordinator")
+  feedbackResolutionsAsResolver         Feedback[]             @relation("FeedbackResolver")
+  complianceAuditsAsAuditor             ComplianceAudit[]      @relation("ComplianceAuditAuditor")
+  permitsIssuedBy                       Permit[]               @relation("PermitIssuer")
+  communityEngagementsOrganized         CommunityEngagement[]  @relation("CommunityEngagementOrganizer")
+  communityEngagementParticipants       CommunityEngagement[]  @relation("CommunityEngagementParticipants")
+  hotspotPredictionsAssigned            HotspotPrediction[]    @relation("HotspotPredictionAssignee")
+
+  @@index([email])
+  @@index([role])
+  @@index([isActive])
+}
+
+model Organization {
+  id          String           @id @default(cuid())
+  name        String
+  type        OrganizationType
+  email       String?
+  phone       String?
+  address     String?
+  createdAt   DateTime         @default(now())
+  updatedAt   DateTime         @updatedAt
+  departments Department[]
+  members     Membership[]
+
+  @@index([type])
+  @@index([name])
+}
+
+model Department {
+  id             String       @id @default(cuid())
+  organizationId String
+  name           String
+  createdAt      DateTime     @default(now())
+  updatedAt      DateTime     @updatedAt
+  organization   Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  memberships    Membership[]
+
+  @@index([organizationId])
+  @@index([name])
+}
+
+model Membership {
+  id             String       @id @default(cuid())
+  userId         String
+  organizationId String
+  departmentId   String?
+  title          String?
+  isPrimary      Boolean      @default(false)
+  createdAt      DateTime     @default(now())
+  department     Department?  @relation(fields: [departmentId], references: [id])
+  organization   Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  user           User         @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([userId, organizationId])
+  @@index([organizationId])
+  @@index([departmentId])
+  @@index([userId])
+}
+
+model Permission {
+  id          String           @id @default(cuid())
+  key         String           @unique
+  description String?
+  roleLinks   RolePermission[]
+}
+
+model RolePermission {
+  id           String     @id @default(cuid())
+  role         UserRole
+  permissionId String
+  permission   Permission @relation(fields: [permissionId], references: [id], onDelete: Cascade)
+
+  @@unique([role, permissionId])
+  @@index([role])
+  @@index([permissionId])
+}
+
+model ForestRegion {
+  id                  String               @id @default(cuid())
+  name                String
+  regionCode          String               @unique
+  district            String
+  chiefdom            String
+  areaHectares        Float
+  geometry            Json
+  centroid            Json
+  elevation           Float?
+  vegetationType      VegetationType
+  protectionStatus    ProtectionStatus
+  description         String?
+  population          Int?
+  createdAt           DateTime             @default(now())
+  updatedAt           DateTime             @updatedAt
+  biodiversityRecords BiodiversityRecord[]
+  deforestationAlerts DeforestationAlert[]
+  fieldReports        FieldReport[]
+  forestPlots         ForestPlot[]
+  mlPredictions       MLPrediction[]
+  satelliteImages     SatelliteImage[]
+  stakeholderLinks    StakeholderRegion[]
+
+  // Additional models relationships
+  carbonStocks            CarbonStock[]
+  environmentalIndicators EnvironmentalIndicator[]
+  weatherStations         WeatherStation[]
+  soilConditions          SoilCondition[]
+  waterBodies             WaterBody[]
+  patrolRoutes            PatrolRoute[]
+  communityReports        CommunityReport[]
+  complianceAudits        ComplianceAudit[]
+  permits                 Permit[]
+  communityEngagements    CommunityEngagement[]
+  riskFactors             RiskFactor[]
+  hotspotPredictions      HotspotPrediction[]
+  thresholdConfigurations ThresholdConfiguration[]
+  kpiTrackings            KpiTracking[]
+
+  @@index([district])
+  @@index([chiefdom])
+  @@index([vegetationType])
+  @@index([protectionStatus])
+  @@index([name])
+}
+
+model ForestPlot {
+  id                  String               @id @default(cuid())
+  plotCode            String               @unique
+  forestRegionId      String
+  latitude            Float
+  longitude           Float
+  geometry            Json
+  sizeHectares        Float                @default(1.0)
+  elevation           Float?
+  slope               Float?
+  soilType            String?
+  aspect              Float?
+  establishmentDate   DateTime
+  lastVisitedDate     DateTime?
+  isActive            Boolean              @default(true)
+  createdAt           DateTime             @default(now())
+  updatedAt           DateTime             @updatedAt
+  treeCount           Int?
+  canopyCover         Float?
+  biomass             Float?
+  carbonStock         Float?
+  biodiversityRecords BiodiversityRecord[]
+  fieldReports        FieldReport[]
+  forestRegion        ForestRegion         @relation(fields: [forestRegionId], references: [id], onDelete: Cascade)
+  plotMeasurements    PlotMeasurement[]
+  soilConditions      SoilCondition[]
+
+  @@index([forestRegionId])
+  @@index([plotCode])
+  @@index([latitude, longitude])
+  @@index([isActive])
+}
+
+model SatelliteImage {
+  id                     String                  @id @default(cuid())
+  forestRegionId         String
+  source                 SatelliteSource
+  imageDate              DateTime
+  cloudCover             Float
+  resolution             Float
+  tileId                 String
+  geometry               Json
+  storagePath            String
+  thumbnailPath          String?
+  processed              Boolean                 @default(false)
+  processingDate         DateTime?
+  ndviMean               Float?
+  ndviStd                Float?
+  ndviMin                Float?
+  ndviMax                Float?
+  eviMean                Float?
+  eviStd                 Float?
+  nbrMean                Float?
+  fileSize               Int?
+  bands                  String[]
+  createdAt              DateTime                @default(now())
+  updatedAt              DateTime                @updatedAt
+  deforestationAlerts    DeforestationAlert[]
+  mlTrainingData         MLTrainingData[]
+  forestRegion           ForestRegion            @relation(fields: [forestRegionId], references: [id], onDelete: Cascade)
+  imageProcessingQueues  ImageProcessingQueue[]
+  changeDetectionResults ChangeDetectionResult[]
+
+  @@index([forestRegionId])
+  @@index([imageDate])
+  @@index([source])
+  @@index([processed])
+}
+
+model DeforestationAlert {
+  id                      String               @id @default(cuid())
+  alertCode               String               @unique
+  forestRegionId          String
+  satelliteImageId        String?
+  assignedToId            String?
+  latitude                Float
+  longitude               Float
+  geometry                Json
+  alertDate               DateTime
+  detectedDate            DateTime
+  areaHectares            Float
+  confidence              Float
+  severity                AlertSeverity
+  status                  AlertStatus          @default(PENDING)
+  priority                Int                  @default(5)
+  ndviChange              Float?
+  brightnessChange        Float?
+  texturalChange          Float?
+  beforeImagePath         String?
+  afterImagePath          String?
+  verifiedDate            DateTime?
+  verifiedBy              String?
+  verificationNotes       String?
+  estimatedLoss           Float?
+  createdAt               DateTime             @default(now())
+  updatedAt               DateTime             @updatedAt
+  alertComments           AlertComment[]
+  policies                AlertPolicy[]
+  assignedTo              User?                @relation(fields: [assignedToId], references: [id])
+  forestRegion            ForestRegion         @relation(fields: [forestRegionId], references: [id], onDelete: Cascade)
+  satelliteImage          SatelliteImage?      @relation(fields: [satelliteImageId], references: [id])
+  cases                   EnforcementCase[]
+  fieldReports            FieldReport[]
+  notifications           Notification[]
+  evidenceCollections     EvidenceCollection[]
+  relatedCommunityReports CommunityReport[]    @relation("RelatedCommunityAlert")
+
+  @@index([forestRegionId])
+  @@index([alertDate])
+  @@index([severity])
+  @@index([status])
+  @@index([assignedToId])
+  @@index([confidence])
+  @@index([priority])
+}
+
+model FieldReport {
+  id                      String               @id @default(cuid())
+  reportCode              String               @unique
+  userId                  String
+  alertId                 String?
+  forestRegionId          String
+  plotId                  String?
+  reportDate              DateTime
+  visitDate               DateTime
+  reportType              ReportType
+  title                   String
+  description             String
+  latitude                Float
+  longitude               Float
+  geometry                Json
+  accuracy                Float?
+  deforestationObserved   Boolean
+  estimatedAreaLoss       Float?
+  cause                   DeforestationCause?
+  evidencePhotos          String[]
+  notes                   String?
+  weather                 String?
+  temperature             Float?
+  isVerified              Boolean              @default(false)
+  verifiedBy              String?
+  verifiedDate            DateTime?
+  createdAt               DateTime             @default(now())
+  updatedAt               DateTime             @updatedAt
+  deforestationAlert      DeforestationAlert?  @relation(fields: [alertId], references: [id])
+  forestRegion            ForestRegion         @relation(fields: [forestRegionId], references: [id], onDelete: Cascade)
+  forestPlot              ForestPlot?          @relation(fields: [plotId], references: [id])
+  user                    User                 @relation(fields: [userId], references: [id], onDelete: Cascade)
+  patrolRoute             PatrolRoute?         @relation(fields: [patrolRouteId], references: [id])
+  patrolRouteId           String?
+  evidenceCollections     EvidenceCollection[]
+  relatedCommunityReports CommunityReport[]    @relation("RelatedCommunityFieldReport")
+
+  @@index([userId])
+  @@index([alertId])
+  @@index([reportDate])
+  @@index([reportType])
+  @@index([forestRegionId])
+  @@index([plotId])
+  @@index([patrolRouteId])
+}
+
+model PlotMeasurement {
+  id                String     @id @default(cuid())
+  plotId            String
+  measurementDate   DateTime
+  measuredBy        String?
+  measurementMethod String?
+  treeCount         Int?
+  avgTreeHeight     Float?
+  maxTreeHeight     Float?
+  avgDbh            Float?
+  maxDbh            Float?
+  basalArea         Float?
+  speciesCount      Int?
+  canopyCover       Float?
+  leafAreaIndex     Float?
+  soilMoisture      Float?
+  soilPh            Float?
+  temperature       Float?
+  humidity          Float?
+  rainfall          Float?
+  biomass           Float?
+  carbonStock       Float?
+  createdAt         DateTime   @default(now())
+  updatedAt         DateTime   @updatedAt
+  forestPlot        ForestPlot @relation(fields: [plotId], references: [id], onDelete: Cascade)
+
+  @@index([plotId])
+  @@index([measurementDate])
+}
+
+model BiodiversityRecord {
+  id              String       @id @default(cuid())
+  forestRegionId  String
+  plotId          String?
+  speciesName     String
+  scientificName  String?
+  speciesType     SpeciesType
+  count           Int?
+  observationDate DateTime
+  observedBy      String?
+  latitude        Float?
+  longitude       Float?
+  geometry        Json?
+  photoPath       String?
+  notes           String?
+  isEndangered    Boolean      @default(false)
+  iucnStatus      String?
+  createdAt       DateTime     @default(now())
+  updatedAt       DateTime     @updatedAt
+  forestRegion    ForestRegion @relation(fields: [forestRegionId], references: [id], onDelete: Cascade)
+  forestPlot      ForestPlot?  @relation(fields: [plotId], references: [id])
+
+  @@index([forestRegionId])
+  @@index([speciesType])
+  @@index([observationDate])
+  @@index([speciesName])
+  @@index([plotId])
+}
+
+model Policy {
+  id               String         @id @default(cuid())
+  policyCode       String         @unique
+  title            String
+  description      String
+  category         PolicyCategory
+  issuingAuthority String
+  effectiveDate    DateTime
+  expiryDate       DateTime?
+  documentPath     String?
+  isActive         Boolean        @default(true)
+  regionScope      String[]
+  tags             String[]
+  version          Int            @default(1)
+  createdAt        DateTime       @default(now())
+  updatedAt        DateTime       @updatedAt
+  alertLinks       AlertPolicy[]
+
+  @@index([category])
+  @@index([effectiveDate])
+  @@index([isActive])
+}
+
+model AlertPolicy {
+  id       String             @id @default(cuid())
+  alertId  String
+  policyId String
+  alert    DeforestationAlert @relation(fields: [alertId], references: [id], onDelete: Cascade)
+  policy   Policy             @relation(fields: [policyId], references: [id], onDelete: Cascade)
+
+  @@unique([alertId, policyId])
+  @@index([policyId])
+  @@index([alertId])
+}
+
+model Stakeholder {
+  id            String              @id @default(cuid())
+  name          String
+  type          StakeholderType
+  contactPerson String?
+  email         String?
+  phone         String?
+  address       String?
+  district      String
+  chiefdom      String?
+  involvement   String[]
+  notes         String?
+  isActive      Boolean             @default(true)
+  createdAt     DateTime            @default(now())
+  updatedAt     DateTime            @updatedAt
+  regionLinks   StakeholderRegion[]
+
+  @@index([type])
+  @@index([district])
+  @@index([isActive])
+  @@index([name])
+}
+
+model StakeholderRegion {
+  id             String       @id @default(cuid())
+  stakeholderId  String
+  forestRegionId String
+  role           String?
+  forestRegion   ForestRegion @relation(fields: [forestRegionId], references: [id], onDelete: Cascade)
+  stakeholder    Stakeholder  @relation(fields: [stakeholderId], references: [id], onDelete: Cascade)
+
+  @@unique([stakeholderId, forestRegionId])
+  @@index([forestRegionId])
+  @@index([stakeholderId])
+}
+
+model Training {
+  id            String               @id @default(cuid())
+  title         String
+  description   String
+  trainingDate  DateTime
+  durationHours Int
+  location      String
+  trainer       String
+  trainerEmail  String?
+  materials     String[]
+  feedback      Json?
+  maxAttendees  Int?
+  status        TrainingStatus       @default(SCHEDULED)
+  createdAt     DateTime             @default(now())
+  updatedAt     DateTime             @updatedAt
+  attendees     TrainingAttendance[]
+
+  @@index([trainingDate])
+  @@index([status])
+}
+
+model TrainingAttendance {
+  id              String           @id @default(cuid())
+  trainingId      String
+  userId          String
+  status          AttendanceStatus @default(REGISTERED)
+  attended        Boolean          @default(false)
+  feedback        String?
+  rating          Int?
+  certificatePath String?
+  createdAt       DateTime         @default(now())
+  updatedAt       DateTime         @updatedAt
+  training        Training         @relation(fields: [trainingId], references: [id], onDelete: Cascade)
+  user            User             @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([trainingId, userId])
+  @@index([trainingId])
+  @@index([userId])
+}
+
+model AuditLog {
+  id         String   @id @default(cuid())
+  userId     String
+  action     String
+  entityType String
+  entityId   String?
+  changes    Json?
+  ipAddress  String?
+  userAgent  String?
+  timestamp  DateTime @default(now())
+  user       User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId])
+  @@index([timestamp])
+  @@index([action])
+  @@index([entityType])
+}
+
+model AlertComment {
+  id                 String             @id @default(cuid())
+  alertId            String
+  userId             String
+  comment            String
+  attachments        String[]
+  createdAt          DateTime           @default(now())
+  updatedAt          DateTime           @updatedAt
+  deforestationAlert DeforestationAlert @relation(fields: [alertId], references: [id], onDelete: Cascade)
+  user               User               @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([alertId])
+  @@index([createdAt])
+  @@index([userId])
+}
+
+model Device {
+  id         String         @id @default(cuid())
+  userId     String
+  deviceId   String
+  name       String?
+  platform   DevicePlatform
+  lastSeenAt DateTime?
+  createdAt  DateTime       @default(now())
+  user       User           @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([userId, deviceId])
+  @@index([userId])
+}
+
+model OfflineSync {
+  id            String     @id @default(cuid())
+  userId        String
+  deviceId      String
+  deviceName    String?
+  syncType      SyncType
+  recordsSynced Int
+  syncDate      DateTime   @default(now())
+  status        SyncStatus
+  errorMessage  String?
+  metadata      Json?
+
+  @@index([userId])
+  @@index([syncDate])
+  @@index([status])
+}
+
+model DashboardWidget {
+  id            String     @id @default(cuid())
+  userId        String
+  widgetType    WidgetType
+  position      Json
+  configuration Json
+  isVisible     Boolean    @default(true)
+  order         Int        @default(0)
+  createdAt     DateTime   @default(now())
+  updatedAt     DateTime   @updatedAt
+  user          User       @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId])
+}
+
+model Account {
+  id                String  @id @default(cuid())
+  userId            String
+  type              String
+  provider          String
+  providerAccountId String
+  refresh_token     String?
+  access_token      String?
+  expires_at        Int?
+  token_type        String?
+  scope             String?
+  id_token          String?
+  session_state     String?
+  user              User    @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([provider, providerAccountId])
+  @@index([userId])
+  @@map("accounts")
+}
+
+model Session {
+  id           String   @id @default(cuid())
+  sessionToken String   @unique
+  userId       String
+  expires      DateTime
+  user         User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId])
+  @@map("sessions")
+}
+
+model EmailVerificationToken {
+  id        String   @id @default(cuid())
+  userId    String
+  token     String   @unique
+  expiresAt DateTime
+  createdAt DateTime @default(now())
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId])
+  @@index([token])
+  @@map("email_verification_tokens")
+}
+
+model PasswordResetToken {
+  id        String   @id @default(cuid())
+  userId    String
+  token     String   @unique
+  expiresAt DateTime
+  createdAt DateTime @default(now())
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId])
+  @@index([token])
+  @@map("password_reset_tokens")
+}
+
+model OTP {
+  id        String   @id @default(cuid())
+  email     String
+  code      String
+  purpose   String
+  expiresAt DateTime
+  verified  Boolean  @default(false)
+  attempts  Int      @default(0)
+  createdAt DateTime @default(now())
+
+  @@index([email, purpose])
+  @@index([code])
+  @@index([expiresAt])
+  @@map("otps")
+}
+
+model MLModel {
+  id                        String                  @id @default(cuid())
+  name                      String
+  version                   String
+  modelType                 MLModelType
+  description               String?
+  modelPath                 String
+  configPath                String?
+  accuracy                  Float?
+  precision                 Float?
+  recall                    Float?
+  f1Score                   Float?
+  isActive                  Boolean                 @default(false)
+  isProduction              Boolean                 @default(false)
+  createdAt                 DateTime                @default(now())
+  updatedAt                 DateTime                @updatedAt
+  predictions               MLPrediction[]
+  trainings                 MLTraining[]
+  changeDetectionAlgorithms ChangeDetectionResult[]
+  algorithmParameters       AlgorithmParameter[]
+  modelPerformances         ModelPerformance[]
+
+  // Remove ensembleModels field since it's not directly needed
+  @@unique([name, version])
+  @@index([isActive])
+  @@index([isProduction])
+}
+
+model MLTraining {
+  id             String           @id @default(cuid())
+  modelId        String
+  trainingDate   DateTime
+  status         MLTrainingStatus @default(PENDING)
+  datasetSize    Int
+  epochs         Int?
+  batchSize      Int?
+  learningRate   Float?
+  accuracy       Float?
+  loss           Float?
+  validationLoss Float?
+  trainingTime   Int?
+  errorMessage   String?
+  logPath        String?
+  metrics        Json?
+  trainedBy      String?
+  createdAt      DateTime         @default(now())
+  updatedAt      DateTime         @updatedAt
+  model          MLModel          @relation(fields: [modelId], references: [id], onDelete: Cascade)
+  trainingData   MLTrainingData[]
+
+  @@index([modelId])
+  @@index([trainingDate])
+  @@index([status])
+}
+
+model MLTrainingData {
+  id               String             @id @default(cuid())
+  trainingId       String
+  satelliteImageId String?
+  label            String
+  boundingBox      Json?
+  metadata         Json?
+  isUsed           Boolean            @default(false)
+  createdAt        DateTime           @default(now())
+  satelliteImage   SatelliteImage?    @relation(fields: [satelliteImageId], references: [id])
+  training         MLTraining         @relation(fields: [trainingId], references: [id], onDelete: Cascade)
+  testDatasetFor   ModelPerformance[] @relation("TestDataset")
+
+  @@index([trainingId])
+  @@index([satelliteImageId])
+}
+
+model MLPrediction {
+  id              String                 @id @default(cuid())
+  modelId         String
+  forestRegionId  String
+  predictionDate  DateTime
+  confidence      Float
+  result          Json
+  inputImagePath  String?
+  outputImagePath String?
+  metadata        Json?
+  createdAt       DateTime               @default(now())
+  forestRegion    ForestRegion           @relation(fields: [forestRegionId], references: [id], onDelete: Cascade)
+  model           MLModel                @relation(fields: [modelId], references: [id], onDelete: Cascade)
+  predictions     ModelEnsemble[]        @relation("ModelEnsemblePredictions")
+  validations     PredictionValidation[]
+
+  @@index([modelId])
+  @@index([forestRegionId])
+  @@index([predictionDate])
+}
+
+model AnalyticsReport {
+  id             String         @id @default(cuid())
+  reportType     ReportTypeEnum
+  title          String
+  description    String?
+  dateRangeStart DateTime
+  dateRangeEnd   DateTime
+  regionIds      String[]
+  filters        Json?
+  data           Json
+  chartConfigs   Json?
+  generatedBy    String?
+  filePath       String?
+  isPublic       Boolean        @default(false)
+  createdAt      DateTime       @default(now())
+  updatedAt      DateTime       @updatedAt
+
+  @@index([reportType])
+  @@index([dateRangeStart, dateRangeEnd])
+  @@index([generatedBy])
+}
+
+model ExportJob {
+  id           String       @id @default(cuid())
+  userId       String
+  exportType   ExportType
+  status       ExportStatus @default(PENDING)
+  filePath     String?
+  fileName     String?
+  fileSize     Int?
+  format       ExportFormat
+  filters      Json?
+  progress     Int          @default(0)
+  errorMessage String?
+  expiresAt    DateTime?
+  createdAt    DateTime     @default(now())
+  updatedAt    DateTime     @updatedAt
+  completedAt  DateTime?
+  user         User         @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId])
+  @@index([status])
+  @@index([createdAt])
+}
+
+model FileStorage {
+  id           String       @id @default(cuid())
+  fileName     String
+  originalName String
+  filePath     String
+  fileSize     Int
+  mimeType     String
+  fileType     FileType
+  entityType   String?
+  entityId     String?
+  uploadedBy   String?
+  isPublic     Boolean      @default(false)
+  accessUrl    String?
+  metadata     Json?
+  createdAt    DateTime     @default(now())
+  updatedAt    DateTime     @updatedAt
+  attachments  Attachment[]
+
+  @@index([entityType, entityId])
+  @@index([fileType])
+  @@index([uploadedBy])
+  @@index([createdAt])
+}
+
+model Attachment {
+  id         String      @id @default(cuid())
+  fileId     String
+  entityType String
+  entityId   String
+  caption    String?
+  createdAt  DateTime    @default(now())
+  file       FileStorage @relation(fields: [fileId], references: [id], onDelete: Cascade)
+
+  @@index([entityType, entityId])
+  @@index([fileId])
+}
+
+model Notification {
+  id        String              @id @default(cuid())
+  userId    String
+  title     String
+  message   String
+  type      NotificationType
+  read      Boolean             @default(false)
+  link      String?
+  alertId   String?
+  metadata  Json?
+  createdAt DateTime            @default(now())
+  readAt    DateTime?
+  alert     DeforestationAlert? @relation(fields: [alertId], references: [id], onDelete: Cascade)
+  user      User                @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId])
+  @@index([read])
+  @@index([createdAt])
+  @@index([type])
+}
+
+model AlertSubscription {
+  id          String          @id @default(cuid())
+  userId      String
+  regionIds   String[]
+  minSeverity AlertSeverity   @default(MEDIUM)
+  channels    NotifyChannel[]
+  isActive    Boolean         @default(true)
+  createdAt   DateTime        @default(now())
+  user        User            @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId])
+  @@index([isActive])
+}
+
+model SystemConfiguration {
+  id          String   @id @default(cuid())
+  key         String   @unique
+  value       String
+  description String?
+  category    String?
+  isPublic    Boolean  @default(false)
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  @@index([category])
+}
+
+model EarlyWarningConfig {
+  id                  String    @id @default(cuid())
+  name                String
+  description         String?
+  regionIds           String[]
+  enabled             Boolean   @default(true)
+  confidenceThreshold Float     @default(0.7)
+  areaThreshold       Float     @default(0.1)
+  checkFrequency      String    @default("DAILY")
+  notificationEmails  String[]
+  autoAssign          Boolean   @default(false)
+  autoAssignRole      UserRole?
+  rules               Json?
+  createdAt           DateTime  @default(now())
+  updatedAt           DateTime  @updatedAt
+
+  @@index([enabled])
+}
+
+model DataQualityCheck {
+  id         String        @id @default(cuid())
+  checkType  String
+  entityType String
+  entityId   String
+  status     QualityStatus
+  score      Float?
+  issues     Json?
+  resolved   Boolean       @default(false)
+  resolvedBy String?
+  resolvedAt DateTime?
+  createdAt  DateTime      @default(now())
+  updatedAt  DateTime      @updatedAt
+
+  @@index([entityType, entityId])
+  @@index([status])
+  @@index([resolved])
+}
+
+model EnforcementCase {
+  id               String             @id @default(cuid())
+  caseCode         String             @unique
+  alertId          String
+  openedById       String
+  assignedToId     String?
+  status           CaseStatus         @default(OPEN)
+  priority         Int                @default(5)
+  summary          String?
+  actionsTaken     Json?
+  closedAt         DateTime?
+  createdAt        DateTime           @default(now())
+  updatedAt        DateTime           @updatedAt
+  alert            DeforestationAlert @relation(fields: [alertId], references: [id], onDelete: Cascade)
+  assignedTo       User?              @relation("CaseAssignedTo", fields: [assignedToId], references: [id])
+  openedBy         User               @relation("CaseOpenedBy", fields: [openedById], references: [id])
+  permitViolations Permit[]           @relation("PermitViolations")
+
+  @@index([alertId])
+  @@index([status])
+  @@index([assignedToId])
+  @@index([priority])
+}
+
+/// This table contains check constraints and requires additional setup for migrations.
+/// Visit https://pris.ly/d/check-constraints for more info.
+model spatial_ref_sys {
+  srid      Int     @id
+  auth_name String? @db.VarChar(256)
+  auth_srid Int?
+  srtext    String? @db.VarChar(2048)
+  proj4text String? @db.VarChar(2048)
+}
+
+enum UserRole {
+  ADMIN
+  GOVERNMENT_OFFICIAL
+  FIELD_OFFICER
+  STAKEHOLDER
+  VIEWER
+}
+
+enum OrganizationType {
+  GOVERNMENT
+  NGO
+  COMMUNITY
+  PRIVATE
+  DONOR
+  ACADEMIC
+}
+
+enum VegetationType {
+  TROPICAL_RAINFOREST
+  MANGROVE
+  SAVANNAH
+  MONTANE_FOREST
+  SECONDARY_FOREST
+  PLANTATION
+  MIXED_FOREST
+}
+
+enum ProtectionStatus {
+  PROTECTED_AREA
+  COMMUNITY_FOREST
+  CONCESSION
+  UNPROTECTED
+  CONSERVATION_AREA
+  NATIONAL_PARK
+}
+
+enum SatelliteSource {
+  LANDSAT_8
+  LANDSAT_9
+  SENTINEL_2
+  SENTINEL_1
+  MODIS
+  PLANET_SCOPE
+  CUSTOM_DRONE
+  AERIAL_PHOTO
+}
+
+enum AlertSeverity {
+  LOW
+  MEDIUM
+  HIGH
+  CRITICAL
+}
+
+enum AlertStatus {
+  PENDING
+  VERIFIED
+  FALSE_ALARM
+  ACTION_TAKEN
+  RESOLVED
+  IN_PROGRESS
+}
+
+enum CaseStatus {
+  OPEN
+  UNDER_INVESTIGATION
+  ACTION_PLANNED
+  ACTION_TAKEN
+  CLOSED
+  DISMISSED
+}
+
+enum ReportType {
+  ALERT_VERIFICATION
+  ROUTINE_MONITORING
+  INCIDENT_REPORT
+  BIODIVERSITY_SURVEY
+  ENFORCEMENT_ACTION
+  RESTORATION_PROGRESS
+}
+
+enum DeforestationCause {
+  AGRICULTURAL_EXPANSION
+  LOGGING
+  MINING
+  INFRASTRUCTURE
+  WILDFIRE
+  CHARCOAL_PRODUCTION
+  ENCROACHMENT
+  NATURAL
+  ILLEGAL_SETTLEMENT
+  UNKNOWN
+}
+
+enum SpeciesType {
+  TREE
+  BIRD
+  MAMMAL
+  REPTILE
+  AMPHIBIAN
+  INSECT
+  PLANT
+  FUNGI
+  FISH
+  OTHER
+}
+
+enum PolicyCategory {
+  CONSERVATION
+  LAND_USE
+  LOGGING
+  MINING
+  COMMUNITY_RIGHTS
+  CARBON_CREDITS
+  ENVIRONMENTAL_PROTECTION
+  WILDLIFE_PROTECTION
+}
+
+enum StakeholderType {
+  GOVERNMENT_AGENCY
+  NGO
+  COMMUNITY_GROUP
+  PRIVATE_COMPANY
+  RESEARCH_INSTITUTION
+  DONOR_AGENCY
+  INDIVIDUAL
+  MEDIA
+}
+
+enum TrainingStatus {
+  SCHEDULED
+  ONGOING
+  COMPLETED
+  CANCELLED
+  POSTPONED
+}
+
+enum AttendanceStatus {
+  REGISTERED
+  ATTENDED
+  ABSENT
+  CANCELLED
+}
+
+enum SyncType {
+  UPLOAD
+  DOWNLOAD
+  BIDIRECTIONAL
+}
+
+enum SyncStatus {
+  PENDING
+  IN_PROGRESS
+  COMPLETED
+  FAILED
+  PARTIAL
+}
+
+enum DevicePlatform {
+  ANDROID
+  IOS
+  WEB
+}
+
+enum WidgetType {
+  ALERT_MAP
+  DEFORESTATION_TIMELINE
+  REGION_STATS
+  RECENT_REPORTS
+  BIODIVERSITY_INDEX
+  CARBON_STOCK
+  SATELLITE_COVERAGE
+  ACTIVITY_FEED
+  ALERT_SEVERITY_CHART
+  REGION_COMPARISON
+  FIELD_REPORTS_CHART
+  ML_PREDICTION_CHART
+}
+
+enum MLModelType {
+  DEFORESTATION_DETECTION
+  VEGETATION_CLASSIFICATION
+  BIOMASS_ESTIMATION
+  CARBON_STOCK_PREDICTION
+  RISK_ASSESSMENT
+  ANOMALY_DETECTION
+}
+
+enum MLTrainingStatus {
+  PENDING
+  RUNNING
+  COMPLETED
+  FAILED
+  CANCELLED
+}
+
+enum ReportTypeEnum {
+  DEFORESTATION_SUMMARY
+  REGION_ANALYSIS
+  ALERT_ANALYSIS
+  BIODIVERSITY_REPORT
+  CARBON_STOCK_REPORT
+  FIELD_REPORTS_SUMMARY
+  COMPLIANCE_REPORT
+  CUSTOM
+}
+
+enum ExportType {
+  ALERTS
+  FIELD_REPORTS
+  SATELLITE_IMAGES
+  BIODIVERSITY_DATA
+  ANALYTICS_DATA
+  USER_DATA
+  FULL_EXPORT
+}
+
+enum ExportFormat {
+  CSV
+  JSON
+  EXCEL
+  PDF
+  GEOJSON
+  SHAPEFILE
+}
+
+enum ExportStatus {
+  PENDING
+  PROCESSING
+  COMPLETED
+  FAILED
+  CANCELLED
+}
+
+enum FileType {
+  IMAGE
+  DOCUMENT
+  SATELLITE_IMAGE
+  VIDEO
+  AUDIO
+  GEOJSON
+  OTHER
+}
+
+enum NotificationType {
+  ALERT_CREATED
+  ALERT_ASSIGNED
+  ALERT_UPDATED
+  FIELD_REPORT_SUBMITTED
+  REPORT_VERIFIED
+  TRAINING_SCHEDULED
+  SYSTEM_UPDATE
+  DATA_EXPORT_READY
+  ML_PREDICTION_COMPLETE
+  GENERAL
+}
+
+enum NotifyChannel {
+  IN_APP
+  EMAIL
+  SMS
+  WHATSAPP
+}
+
+enum QualityStatus {
+  PASSED
+  WARNING
+  FAILED
+  PENDING
+}
+
+//////////////////////////////
+// ADDITIONAL GEOSPATIAL MODELS
+//////////////////////////////
+
+enum CarbonCreditStatus {
+  PENDING_VERIFICATION
+  VERIFIED
+  ISSUED
+  TRANSFERRED
+  RETIRED
+}
+
+enum EnvironmentalIndicatorType {
+  CARBON_DIOXIDE
+  OXYGEN_PRODUCTION
+  WATER_RETENTION
+  SOIL_CONSERVATION
+  BIODIVERSITY_INDEX
+  AIR_QUALITY
+}
+
+enum SoilConditionType {
+  ERODED
+  COMPACTED
+  CONTAMINATED
+  HEALTHY
+  DEGRADED
+}
+
+enum WaterSourceType {
+  STREAM
+  RIVER
+  LAKE
+  POND
+  SPRING
+  WETLAND
+}
+
+enum ProcessingPriority {
+  LOW
+  NORMAL
+  HIGH
+  URGENT
+}
+
+enum ProcessingStatus {
+  QUEUED
+  PROCESSING
+  COMPLETED
+  FAILED
+  CANCELLED
+}
+
+enum ChangeDetectionAlgorithm {
+  NDVI_DIFFERENCE
+  RATIO_VEGETATION_INDEX
+  PCA_CHANGE_DETECTION
+  SVM_CLASSIFICATION
+  CNN_DETECTION
+  RANDOM_FOREST
+}
+
+enum ValidationStatus {
+  UNVALIDATED
+  IN_REVIEW
+  VALIDATED
+  INVALID
+  DISPUTED
+}
+
+enum KpiType {
+  FOREST_COVER
+  DEFORESTATION_RATE
+  CARBON_STORAGE
+  BIODIVERSITY_INDEX
+  PATROL_EFFICIENCY
+  ALERT_RESPONSE_TIME
+  COMPLIANCE_RATE
+}
+
+enum TrendType {
+  SEASONAL
+  ANNUAL
+  MULTI_YEAR
+  CYCLICAL
+  IRREGULAR
+}
+
+enum RiskFactorType {
+  AGRICULTURAL_PRESSURE
+  ACCESSIBILITY
+  ECONOMIC_DRIVERS
+  GOVERNANCE_WEAKNESS
+  DEMOGRAPHIC_PRESSURE
+  CLIMATE_STRESS
+  MARKET_ACCESS
+  POLICY_GAP
+  ILLEGAL_LOGGING
+}
+
+enum RiskLevel {
+  VERY_LOW
+  LOW
+  MEDIUM
+  HIGH
+  VERY_HIGH
+}
+
+enum AlertTriggerType {
+  THRESHOLD_EXCEEDED
+  TREND_IDENTIFIED
+  ANOMALY_DETECTED
+  USER_REPORT
+  MODEL_PREDICTION
+}
+
+enum PatrolStatus {
+  PLANNED
+  IN_PROGRESS
+  COMPLETED
+  CANCELLED
+  OVERDUE
+}
+
+enum EvidenceType {
+  PHOTO
+  VIDEO
+  AUDIO
+  GPS_COORDINATES
+  MEASUREMENT
+  OBSERVATION
+  DOCUMENT
+}
+
+enum ReportSource {
+  FIELD_OFFICER
+  COMMUNITY_MEMBER
+  SATELLITE_ALERT
+  DRONE_SURVEILLANCE
+  NGO_PARTNER
+  GOVERNMENT_AGENCY
+}
+
+enum LegalStatus {
+  PROPOSED
+  ENACTED
+  AMENDED
+  REPEALED
+  SUSPENDED
+}
+
+enum ComplianceStatus {
+  COMPLIANT
+  NON_COMPLIANT
+  PENDING_REVIEW
+  EXEMPT
+}
+
+enum PermitType {
+  LOGGING_PERMIT
+  LAND_USE_PERMIT
+  CONSTRUCTION_PERMIT
+  MINING_LICENSE
+  AGRICULTURAL_CLEARANCE
+  LOGGING
+}
+
+enum PermitStatus {
+  PENDING_APPLICATION
+  UNDER_REVIEW
+  APPROVED
+  DENIED
+  SUSPENDED
+  REVOKED
+  EXPIRED
+  RENEWED
+}
+
+enum CampaignType {
+  AWARENESS
+  EDUCATION
+  MOBILIZATION
+  ADVOCACY
+  FUNDRAISING
+  PUBLIC_AWARENESS
+}
+
+enum CampaignStatus {
+  PLANNING
+  ACTIVE
+  PAUSED
+  COMPLETED
+  CANCELLED
+}
+
+enum FeedbackType {
+  SUGGESTION
+  COMPLAINT
+  PRAISE
+  BUG_REPORT
+  FEATURE_REQUEST
+}
+
+enum EngagementType {
+  WORKSHOP
+  MEETING
+  SURVEY
+  FOCUS_GROUP
+  ONLINE_POLL
+  FEEDBACK_SESSION
+}
+
+enum TransactionType {
+  ISSUANCE
+  TRANSFER
+  RETIREMENT
+  CANCELLATION
+}
+
+model CarbonStock {
+  id              String   @id @default(cuid())
+  forestRegionId  String
+  measurementDate DateTime
+  carbonDensity   Float // tons/hectare
+  totalCarbon     Float // total tons
+  carbonChange    Float? // compared to previous measurement
+  methodology     String // e.g. "IPCC Guidelines"
+  measuredBy      String?
+  notes           String?
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+
+  forestRegion  ForestRegion   @relation(fields: [forestRegionId], references: [id], onDelete: Cascade)
+  carbonCredits CarbonCredit[]
+
+  @@index([forestRegionId])
+  @@index([measurementDate])
+}
+
+model CarbonCredit {
+  id                 String              @id @default(cuid())
+  creditCode         String              @unique
+  carbonStockId      String
+  quantity           Float // number of credits
+  vintageYear        Int // year the carbon was sequestered
+  status             CarbonCreditStatus  @default(PENDING_VERIFICATION)
+  issuedDate         DateTime?
+  expirationDate     DateTime?
+  holder             String? // current owner
+  projectDetails     String?
+  verificationBody   String?
+  transactionHistory CreditTransaction[]
+  createdAt          DateTime            @default(now())
+  updatedAt          DateTime            @updatedAt
+
+  carbonStock CarbonStock @relation(fields: [carbonStockId], references: [id], onDelete: Cascade)
+
+  @@index([carbonStockId])
+  @@index([status])
+  @@index([vintageYear])
+}
+
+model CreditTransaction {
+  id              String          @id @default(cuid())
+  creditId        String
+  transactionType TransactionType
+  fromHolder      String?
+  toHolder        String?
+  quantity        Float
+  transactionDate DateTime
+  notes           String?
+  createdAt       DateTime        @default(now())
+
+  credit CarbonCredit @relation(fields: [creditId], references: [id], onDelete: Cascade)
+
+  @@index([creditId])
+  @@index([transactionDate])
+}
+
+model EnvironmentalIndicator {
+  id              String                     @id @default(cuid())
+  forestRegionId  String
+  indicatorType   EnvironmentalIndicatorType
+  value           Float
+  unit            String // e.g. "tons CO2/year"
+  measurementDate DateTime
+  baselineValue   Float?
+  deviation       Float? // from baseline
+  source          String? // measurement source
+  methodology     String? // how measured
+  createdAt       DateTime                   @default(now())
+  updatedAt       DateTime                   @updatedAt
+
+  forestRegion ForestRegion @relation(fields: [forestRegionId], references: [id], onDelete: Cascade)
+
+  @@index([forestRegionId])
+  @@index([indicatorType])
+  @@index([measurementDate])
+}
+
+model WeatherStation {
+  id               String           @id @default(cuid())
+  stationCode      String           @unique
+  forestRegionId   String
+  name             String
+  latitude         Float
+  longitude        Float
+  elevation        Float?
+  installationDate DateTime
+  lastMaintenance  DateTime?
+  isActive         Boolean          @default(true)
+  equipmentType    String? // e.g. "Automatic", "Manual"
+  parameters       String[] // e.g. ["temperature", "rainfall"]
+  readings         WeatherReading[]
+  createdAt        DateTime         @default(now())
+  updatedAt        DateTime         @updatedAt
+
+  forestRegion ForestRegion @relation(fields: [forestRegionId], references: [id], onDelete: Cascade)
+
+  @@index([forestRegionId])
+  @@index([isActive])
+}
+
+model WeatherReading {
+  id                 String   @id @default(cuid())
+  stationId          String
+  readingDate        DateTime
+  temperatureAvg     Float?
+  temperatureMin     Float?
+  temperatureMax     Float?
+  rainfall           Float?
+  humidity           Float?
+  windSpeed          Float?
+  windDirection      Float?
+  pressure           Float?
+  solarRadiation     Float?
+  evapotranspiration Float?
+  notes              String?
+  createdAt          DateTime @default(now())
+
+  weatherStation WeatherStation @relation(fields: [stationId], references: [id], onDelete: Cascade)
+
+  @@index([stationId])
+  @@index([readingDate])
+}
+
+model SoilCondition {
+  id              String            @id @default(cuid())
+  forestRegionId  String
+  plotId          String?
+  conditionType   SoilConditionType
+  assessmentDate  DateTime
+  pHLevel         Float?
+  nitrogenLevel   Float? // mg/kg
+  phosphorusLevel Float? // mg/kg
+  potassiumLevel  Float? // mg/kg
+  organicMatter   Float? // percentage
+  erosionLevel    Float? // percentage
+  compactionLevel Float? // PSI or index
+  soilTexture     String? // e.g. "clay loam"
+  assessedBy      String?
+  recommendations String?
+  photos          String[]
+  createdAt       DateTime          @default(now())
+  updatedAt       DateTime          @updatedAt
+
+  forestRegion ForestRegion @relation(fields: [forestRegionId], references: [id], onDelete: Cascade)
+  forestPlot   ForestPlot?  @relation(fields: [plotId], references: [id])
+
+  @@index([forestRegionId])
+  @@index([conditionType])
+  @@index([assessmentDate])
+}
+
+model WaterBody {
+  id               String           @id @default(cuid())
+  forestRegionId   String
+  name             String
+  waterType        WaterSourceType
+  geometry         Json
+  areaHa           Float? // area in hectares
+  perimeter        Float? // in meters
+  depthAvg         Float? // average depth in meters
+  waterQuality     WaterQuality?
+  ecologicalHealth Int? // 1-10 scale
+  bufferZone       Float? // buffer zone in meters
+  threats          String[] // list of threats
+  protectionStatus ProtectionStatus
+  createdAt        DateTime         @default(now())
+  updatedAt        DateTime         @updatedAt
+
+  forestRegion         ForestRegion          @relation(fields: [forestRegionId], references: [id], onDelete: Cascade)
+  waterQualityReadings WaterQualityReading[]
+
+  @@index([forestRegionId])
+  @@index([waterType])
+  @@index([protectionStatus])
+}
+
+model WaterQuality {
+  id                 String   @id @default(cuid())
+  waterBodyId        String
+  phLevel            Float? // 0-14 scale
+  dissolvedOxygen    Float? // mg/L
+  turbidity          Float? // NTU
+  nitrates           Float? // mg/L
+  phosphates         Float? // mg/L
+  bacteriaCount      Int? // CFU/100ml
+  chemicalPollutants String[] // list of chemicals
+  lastTested         DateTime
+  testedBy           String?
+  createdAt          DateTime @default(now())
+  updatedAt          DateTime @updatedAt
+
+  waterBody WaterBody             @relation(fields: [waterBodyId], references: [id], onDelete: Cascade)
+  readings  WaterQualityReading[]
+
+  @@unique([waterBodyId])
+  @@index([lastTested])
+}
+
+model WaterQualityReading {
+  id            String   @id @default(cuid())
+  qualityId     String
+  parameter     String // e.g. "pH", "DO"
+  value         Float
+  unit          String // e.g. "pH", "mg/L"
+  readingDate   DateTime
+  methodology   String?
+  qualityStatus String? // "GOOD", "FAIR", "POOR"
+  createdAt     DateTime @default(now())
+
+  waterQuality WaterQuality @relation(fields: [qualityId], references: [id], onDelete: Cascade)
+  waterBody    WaterBody    @relation(fields: [waterBodyId], references: [id], onDelete: Cascade)
+  waterBodyId  String
+
+  @@index([qualityId])
+  @@index([parameter])
+  @@index([readingDate])
+  @@index([waterBodyId])
+}
+
+//////////////////////////////
+// SATELLITE & AI ENHANCEMENT MODELS
+//////////////////////////////
+
+model ImageProcessingQueue {
+  id           String                   @id @default(cuid())
+  imageId      String
+  taskId       String                   @unique
+  algorithm    ChangeDetectionAlgorithm
+  parameters   Json // algorithm-specific parameters
+  priority     ProcessingPriority       @default(NORMAL)
+  status       ProcessingStatus         @default(QUEUED)
+  progress     Int                      @default(0) // 0-100%
+  startedAt    DateTime?
+  completedAt  DateTime?
+  errorMessage String?
+  outputFiles  String[]
+  metadata     Json?
+  retries      Int                      @default(0)
+  maxRetries   Int                      @default(3)
+  queuedAt     DateTime                 @default(now())
+  updatedAt    DateTime                 @updatedAt
+
+  satelliteImage SatelliteImage @relation(fields: [imageId], references: [id], onDelete: Cascade)
+
+  @@index([imageId])
+  @@index([status])
+  @@index([priority])
+  @@index([queuedAt])
+}
+
+model ChangeDetectionResult {
+  id                 String             @id @default(cuid())
+  imageId            String
+  algorithmId        String?
+  detectionDate      DateTime
+  confidence         Float // 0-1 confidence score
+  changeAreaHa       Float // area of change in hectares
+  changeIntensity    Float // intensity of change
+  affectedVegetation Float? // percentage of vegetation affected
+  coordinates        Json // GeoJSON of changed areas
+  beforeImageUrl     String?
+  afterImageUrl      String?
+  changeMapUrl       String?
+  validationResults  ValidationResult[]
+  createdAt          DateTime           @default(now())
+  updatedAt          DateTime           @updatedAt
+
+  satelliteImage SatelliteImage @relation(fields: [imageId], references: [id], onDelete: Cascade)
+  algorithm      MLModel?       @relation(fields: [algorithmId], references: [id])
+
+  @@index([imageId])
+  @@index([detectionDate])
+  @@index([confidence])
+}
+
+model ValidationResult {
+  id                   String           @id @default(cuid())
+  detectionResultId    String
+  validatorId          String
+  validationDate       DateTime
+  status               ValidationStatus
+  accuracyScore        Float? // 0-1 accuracy of the detection
+  feedback             String?
+  suggestedCorrections Json? // suggested corrections to the detection
+  reviewedBy           String?
+  reviewDate           DateTime?
+  isDisputed           Boolean          @default(false)
+  disputeReason        String?
+  createdAt            DateTime         @default(now())
+  updatedAt            DateTime         @updatedAt
+
+  detectionResult ChangeDetectionResult @relation(fields: [detectionResultId], references: [id], onDelete: Cascade)
+  validator       User                  @relation("ValidationResultValidator", fields: [validatorId], references: [id], onDelete: Cascade)
+  reviewer        User?                 @relation("ValidationResultReviewer", fields: [reviewedBy], references: [id])
+
+  @@unique([detectionResultId, validatorId])
+  @@index([validationDate])
+  @@index([status])
+}
+
+model AlgorithmParameter {
+  id           String   @id @default(cuid())
+  modelId      String
+  paramName    String // name of the parameter
+  paramValue   String // value of the parameter
+  defaultValue String // default value
+  minValue     Float? // minimum acceptable value
+  maxValue     Float? // maximum acceptable value
+  description  String?
+  isTunable    Boolean  @default(false) // can this parameter be tuned?
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+
+  mlModel MLModel @relation(fields: [modelId], references: [id], onDelete: Cascade)
+
+  @@unique([modelId, paramName])
+  @@index([modelId])
+}
+
+model ModelPerformance {
+  id              String   @id @default(cuid())
+  modelId         String
+  testDatasetId   String?
+  evaluationDate  DateTime
+  accuracy        Float // 0-1 accuracy
+  precision       Float // 0-1 precision
+  recall          Float // 0-1 recall
+  f1Score         Float // 0-1 f1 score
+  aucScore        Float? // Area Under Curve
+  kappaStatistic  Float? // Cohen's Kappa
+  confusionMatrix Json? // Confusion matrix as JSON
+  metrics         Json? // Additional metrics
+  evaluatedBy     String?
+  notes           String?
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+
+  mlModel     MLModel         @relation(fields: [modelId], references: [id], onDelete: Cascade)
+  testDataset MLTrainingData? @relation("TestDataset", fields: [testDatasetId], references: [id])
+
+  @@index([modelId])
+  @@index([evaluationDate])
+}
+
+model PredictionValidation {
+  id             String    @id @default(cuid())
+  predictionId   String
+  validatorId    String
+  validationDate DateTime
+  isValid        Boolean
+  confidence     Float // How confident is validator in their assessment
+  feedback       String?
+  correction     Json? // If invalid, what should the correct prediction be
+  reviewedBy     String?
+  reviewDate     DateTime?
+  createdAt      DateTime  @default(now())
+  updatedAt      DateTime  @updatedAt
+
+  mlPrediction MLPrediction @relation(fields: [predictionId], references: [id], onDelete: Cascade)
+  validator    User         @relation("PredictionValidationValidator", fields: [validatorId], references: [id], onDelete: Cascade)
+  reviewer     User?        @relation("PredictionValidationReviewer", fields: [reviewedBy], references: [id])
+
+  @@unique([predictionId, validatorId])
+  @@index([validationDate])
+  @@index([isValid])
+}
+
+model ModelEnsemble {
+  id                String   @id @default(cuid())
+  name              String
+  description       String?
+  modelIds          String[] // IDs of models in this ensemble
+  weights           Json? // Weights for each model in the ensemble
+  combinationMethod String // e.g. "VOTING", "AVERAGING", "STACKING"
+  isActive          Boolean  @default(false)
+  accuracy          Float? // Overall accuracy of ensemble
+  createdAt         DateTime @default(now())
+  updatedAt         DateTime @updatedAt
+
+  predictions MLPrediction[] @relation("ModelEnsemblePredictions")
+
+  @@index([isActive])
+}
+
+//////////////////////////////
+// ADVANCED ANALYTICS MODELS
+//////////////////////////////
+
+model KpiTracking {
+  id                String   @id @default(cuid())
+  kpiType           KpiType
+  regionId          String?
+  periodStart       DateTime
+  periodEnd         DateTime
+  value             Float
+  targetValue       Float?
+  unit              String // e.g. "hectares", "%", "tons"
+  calculationMethod String // How the KPI was calculated
+  dataSource        String[] // Sources of the data
+  confidence        Float? // Confidence in the KPI value
+  trendDirection    String? // "UP", "DOWN", "STABLE"
+  status            String? // "MEETING_TARGET", "BELOW_TARGET", "ABOVE_TARGET"
+  notes             String?
+  recordedBy        String?
+  createdAt         DateTime @default(now())
+  updatedAt         DateTime @updatedAt
+
+  trendAnalyses TrendAnalysis[]
+  forestRegion  ForestRegion?   @relation(fields: [regionId], references: [id])
+
+  @@index([kpiType])
+  @@index([regionId])
+  @@index([periodStart, periodEnd])
+}
+
+model TrendAnalysis {
+  id                 String    @id @default(cuid())
+  kpiId              String
+  trendType          TrendType
+  startDate          DateTime
+  endDate            DateTime
+  trendStrength      Float // Strength of the trend (0-1)
+  trendDirection     String // "POSITIVE", "NEGATIVE", "NEUTRAL"
+  significance       Float // Statistical significance (0-1)
+  pValue             Float? // Statistical p-value
+  rSquared           Float? // R-squared value
+  slope              Float // Slope of the trend line
+  intercept          Float // Intercept of the trend line
+  forecastFuture     Json? // Forecasted values
+  influencingFactors String[] // Factors influencing the trend
+  analysisMethod     String // Method used for analysis
+  analyst            String?
+  notes              String?
+  createdAt          DateTime  @default(now())
+  updatedAt          DateTime  @updatedAt
+
+  kpi KpiTracking @relation(fields: [kpiId], references: [id], onDelete: Cascade)
+
+  @@index([kpiId])
+  @@index([trendType])
+  @@index([startDate, endDate])
+}
+
+//////////////////////////////
+// EARLY WARNING SYSTEM MODELS
+//////////////////////////////
+
+model RiskFactor {
+  id                  String         @id @default(cuid())
+  regionId            String
+  factorType          RiskFactorType
+  assessmentDate      DateTime
+  riskLevel           RiskLevel
+  score               Float // Numerical score (0-100)
+  weight              Float // Weight in overall risk calculation
+  contributingFactors Json? // Detailed contributing factors
+  mitigationMeasures  String[] // Suggested mitigation measures
+  lastUpdated         DateTime       @updatedAt
+  updatedBy           String?
+  notes               String?
+  createdAt           DateTime       @default(now())
+
+  forestRegion ForestRegion @relation(fields: [regionId], references: [id], onDelete: Cascade)
+
+  @@index([regionId])
+  @@index([factorType])
+  @@index([riskLevel])
+  @@index([assessmentDate])
+}
+
+model HotspotPrediction {
+  id                String    @id @default(cuid())
+  regionId          String
+  predictionDate    DateTime
+  predictedRisk     RiskLevel
+  probability       Float // Probability of deforestation (0-1)
+  riskFactors       Json? // Contributing risk factors
+  confidence        Float // Confidence in prediction (0-1)
+  predictionModel   String? // Which model made the prediction
+  validityPeriod    DateTime // Until when this prediction is valid
+  preventiveActions String[] // Recommended preventive actions
+  status            String    @default("ACTIVE") // ACTIVE, IN_PROGRESS, COMPLETED, ARCHIVED
+  priority          Int       @default(5) // 1-10 priority level
+  assignedTo        String?
+  completedDate     DateTime?
+  effectiveness     Float? // How effective were the actions
+  createdAt         DateTime  @default(now())
+  updatedAt         DateTime  @updatedAt
+
+  forestRegion ForestRegion @relation(fields: [regionId], references: [id], onDelete: Cascade)
+  user         User?        @relation("HotspotPredictionAssignee", fields: [assignedTo], references: [id])
+
+  @@index([regionId])
+  @@index([predictedRisk])
+  @@index([predictionDate])
+  @@index([status])
+  @@index([priority])
+}
+
+model ThresholdConfiguration {
+  id                   String          @id @default(cuid())
+  alertType            String // Type of alert this threshold applies to
+  regionId             String?
+  parameter            String // Parameter being monitored
+  comparisonOperator   String // "GT", "LT", "EQ", "GTE", "LTE"
+  thresholdValue       Float // Threshold value
+  unit                 String // Unit of measurement
+  isActive             Boolean         @default(true)
+  alertSeverity        AlertSeverity   @default(MEDIUM)
+  notificationChannels NotifyChannel[]
+  escalationRules      Json? // Rules for escalating alerts
+  createdBy            String?
+  createdAt            DateTime        @default(now())
+  updatedAt            DateTime        @updatedAt
+
+  forestRegion ForestRegion? @relation(fields: [regionId], references: [id])
+
+  @@index([alertType])
+  @@index([regionId])
+  @@index([isActive])
+}
+
+//////////////////////////////
+// MOBILE & FIELD OPERATIONS MODELS
+//////////////////////////////
+
+model PatrolRoute {
+  id                String       @id @default(cuid())
+  routeName         String
+  regionId          String
+  assignedTo        String[] // List of user IDs assigned
+  plannedDate       DateTime
+  startDate         DateTime?
+  endDate           DateTime?
+  status            PatrolStatus @default(PLANNED)
+  routeGeometry     Json // GeoJSON of the route
+  distance          Float? // Distance in km
+  estimatedDuration Int? // Estimated duration in minutes
+  priority          Int          @default(5) // 1-10 priority
+  objectives        String[] // Patrol objectives
+  equipmentNeeded   String[] // Equipment needed
+  safetyNotes       String?
+  completedBy       String?
+  completionNotes   String?
+  createdAt         DateTime     @default(now())
+  updatedAt         DateTime     @updatedAt
+
+  forestRegion  ForestRegion  @relation(fields: [regionId], references: [id], onDelete: Cascade)
+  assignedUsers User[]        @relation("PatrolAssignedUsers")
+  patrolReports FieldReport[]
+
+  @@index([regionId])
+  @@index([status])
+  @@index([plannedDate])
+  @@index([priority])
+}
+
+model EvidenceCollection {
+  id            String       @id @default(cuid())
+  reportId      String?
+  alertId       String?
+  collectedDate DateTime
+  collectorId   String
+  evidenceType  EvidenceType
+  description   String
+  filePaths     String[] // Paths to evidence files
+  coordinates   Json? // Where evidence was collected
+  accuracy      Float? // GPS accuracy
+  metadata      Json? // Additional metadata
+  verified      Boolean      @default(false)
+  verifiedBy    String?
+  verifiedAt    DateTime?
+  qualityScore  Int? // 1-10 quality score
+  tags          String[] // Tags for categorization
+  createdAt     DateTime     @default(now())
+  updatedAt     DateTime     @updatedAt
+
+  fieldReport        FieldReport?        @relation(fields: [reportId], references: [id])
+  deforestationAlert DeforestationAlert? @relation(fields: [alertId], references: [id])
+  collector          User                @relation("EvidenceCollectionCollector", fields: [collectorId], references: [id], onDelete: Cascade)
+  verifier           User?               @relation("EvidenceCollectionVerifier", fields: [verifiedBy], references: [id])
+
+  @@index([collectorId])
+  @@index([evidenceType])
+  @@index([collectedDate])
+  @@index([verified])
+}
+
+model CommunityReport {
+  id                 String        @id @default(cuid())
+  reporterName       String
+  reporterContact    String?
+  reportDate         DateTime
+  reportType         ReportSource
+  location           Json // Coordinates of reported incident
+  latitude           Float
+  longitude          Float
+  description        String
+  severity           AlertSeverity @default(MEDIUM)
+  status             AlertStatus   @default(PENDING)
+  assignedTo         String?
+  verificationStatus String        @default("UNVERIFIED")
+  evidencePhotos     String[]
+  urgency            Int           @default(5) // 1-10 urgency level
+  sourceDetails      Json? // Additional details about the source
+  isVerified         Boolean       @default(false)
+  verifiedBy         String?
+  verifiedAt         DateTime?
+  relatedAlertId     String?
+  relatedReportId    String?
+  notes              String?
+  createdAt          DateTime      @default(now())
+  updatedAt          DateTime      @updatedAt
+
+  assignedUser   User?               @relation("CommunityReportAssignee", fields: [assignedTo], references: [id])
+  verifiedUser   User?               @relation("CommunityReportVerifier", fields: [verifiedBy], references: [id])
+  relatedAlert   DeforestationAlert? @relation("RelatedCommunityAlert", fields: [relatedAlertId], references: [id])
+  relatedReport  FieldReport?        @relation("RelatedCommunityFieldReport", fields: [relatedReportId], references: [id])
+  forestRegion   ForestRegion        @relation(fields: [forestRegionId], references: [id], onDelete: Cascade)
+  forestRegionId String
+
+  @@index([reportDate])
+  @@index([severity])
+  @@index([status])
+  @@index([verificationStatus])
+  @@index([urgency])
+  @@index([forestRegionId])
+}
+
+//////////////////////////////
+// GOVERNANCE & COMPLIANCE MODELS
+//////////////////////////////
+
+model LegalFramework {
+  id                String      @id @default(cuid())
+  title             String
+  jurisdiction      String // e.g. "Sierra Leone", "Western Area Peninsula"
+  legalType         String // e.g. "Act", "Regulation", "Policy"
+  status            LegalStatus @default(ENACTED)
+  effectiveDate     DateTime
+  expiryDate        DateTime?
+  description       String
+  text              String // Full text of the law/policy
+  applicableRegions String[] // Regions where this applies
+  enforcementAgency String? // Agency responsible for enforcement
+  penalties         Json? // Description of penalties
+  amendments        Json[]      @default([])
+  relatedLaws       String[] // Related legal instruments
+  createdAt         DateTime    @default(now())
+  updatedAt         DateTime    @updatedAt
+
+  @@index([jurisdiction])
+  @@index([legalType])
+  @@index([status])
+  @@index([effectiveDate])
+}
+
+// Update the ComplianceAudit model to add the back relation:
+model ComplianceAudit {
+  id                String           @id @default(cuid())
+  auditCode         String           @unique
+  regionId          String
+  auditDate         DateTime
+  auditorId         String
+  scope             String // Scope of the audit
+  findings          Json? // Audit findings
+  complianceStatus  ComplianceStatus
+  recommendations   String[]
+  correctiveActions Json[]
+  deadline          DateTime?
+  completedDate     DateTime?
+  followUpAudits    String[] // IDs of follow-up audits
+  reportFile        String?
+  rating            Int? // 1-10 compliance rating
+  notes             String?
+  createdAt         DateTime         @default(now())
+  updatedAt         DateTime         @updatedAt
+
+  forestRegion         ForestRegion @relation(fields: [regionId], references: [id], onDelete: Cascade)
+  auditor              User         @relation("ComplianceAuditAuditor", fields: [auditorId], references: [id], onDelete: Cascade)
+  // Add the back relation for permit compliance reports
+  permitsCompliantWith Permit[]     @relation("PermitComplianceAudits")
+
+  @@index([regionId])
+  @@index([auditDate])
+  @@index([complianceStatus])
+  @@index([auditorId])
+}
+
+// Update the Permit model to simplify the relation (remove the fields and complianceReportIds):
+model Permit {
+  id                      String            @id @default(cuid())
+  permitNumber            String            @unique
+  permitType              PermitType
+  regionId                String
+  applicantName           String
+  applicantContact        String?
+  issuedDate              DateTime
+  expiryDate              DateTime
+  status                  PermitStatus      @default(PENDING_APPLICATION)
+  issuedBy                String?
+  conditions              String[] // Conditions of the permit
+  areaHectares            Float // Area covered by the permit
+  purpose                 String // Purpose of the permit
+  approvedActivities      String[] // Approved activities
+  environmentalSafeguards Json[]
+  monitoringRequirements  Json[]
+  complianceReports       ComplianceAudit[] @relation("PermitComplianceAudits")
+  violations              EnforcementCase[] @relation("PermitViolations")
+  applicationDocuments    String[]
+  denialReason            String? // If denied
+  renewalHistory          Json[]            @default([])
+  notes                   String?
+  createdAt               DateTime          @default(now())
+  updatedAt               DateTime          @updatedAt
+
+  forestRegion ForestRegion @relation(fields: [regionId], references: [id], onDelete: Cascade)
+  issuer       User?        @relation("PermitIssuer", fields: [issuedBy], references: [id])
+
+  @@index([permitType])
+  @@index([regionId])
+  @@index([status])
+  @@index([expiryDate])
+  @@index([issuedDate])
+}
+
+//////////////////////////////
+// COMMUNICATION & OUTREACH MODELS
+//////////////////////////////
+
+model CommunityEngagement {
+  id               String         @id @default(cuid())
+  eventId          String         @unique
+  eventName        String
+  regionId         String
+  engagementType   EngagementType
+  organizerId      String
+  participants     String[] // IDs of participating users/stakeholders
+  date             DateTime
+  duration         Int? // Duration in minutes
+  location         String
+  objectives       String[]
+  attendanceCount  Int
+  outcomes         Json? // Outcomes of the engagement
+  feedback         String[]
+  photos           String[]
+  documents        String[]
+  followUps        Json[] // Follow-up actions
+  impactAssessment Json?
+  status           String         @default("COMPLETED")
+  notes            String?
+  createdAt        DateTime       @default(now())
+  updatedAt        DateTime       @updatedAt
+
+  forestRegion     ForestRegion @relation(fields: [regionId], references: [id], onDelete: Cascade)
+  organizer        User         @relation("CommunityEngagementOrganizer", fields: [organizerId], references: [id], onDelete: Cascade)
+  participantUsers User[]       @relation("CommunityEngagementParticipants")
+
+  @@index([regionId])
+  @@index([engagementType])
+  @@index([date])
+  @@index([organizerId])
+}
+
+model AwarenessCampaign {
+  id             String         @id @default(cuid())
+  campaignName   String
+  campaignType   CampaignType
+  startDate      DateTime
+  endDate        DateTime
+  status         CampaignStatus @default(PLANNING)
+  targetAudience String[] // e.g. ["local communities", "students", "officials"]
+  regions        String[] // Target regions
+  objectives     String[]
+  activities     Json[] // Planned activities
+  budget         Float?
+  spentAmount    Float? // Amount spent so far
+  reach          Int // Number of people reached
+  engagementRate Float? // Engagement rate
+  materials      String[] // Materials used
+  partners       String[] // Partner organizations
+  outcomes       Json? // Outcomes achieved
+  challenges     String[] // Challenges faced
+  lessonsLearned String[] // Lessons learned
+  coordinatorId  String?
+  evaluation     Json? // Evaluation results
+  reports        String[] // Reports generated
+  photos         String[] // Photos from campaign
+  createdAt      DateTime       @default(now())
+  updatedAt      DateTime       @updatedAt
+
+  coordinator User? @relation("CampaignCoordinator", fields: [coordinatorId], references: [id])
+
+  @@index([campaignType])
+  @@index([status])
+  @@index([startDate, endDate])
+}
+
+model Feedback {
+  id                String       @id @default(cuid())
+  submitterName     String
+  submitterContact  String?
+  feedbackType      FeedbackType
+  subject           String
+  message           String
+  submittedDate     DateTime
+  resolved          Boolean      @default(false)
+  resolvedBy        String?
+  resolvedDate      DateTime?
+  resolutionNotes   String?
+  rating            Int? // 1-5 rating if applicable
+  category          String? // Category of feedback
+  priority          Int          @default(3) // 1-5 priority
+  relatedEntity     String? // Related entity (e.g. alert ID, report ID)
+  relatedEntityType String? // Type of related entity
+  anonymous         Boolean      @default(false)
+  attachments       String[] // Attached files
+  status            String       @default("PENDING") // PENDING, IN_PROGRESS, RESOLVED, CLOSED
+  notes             String?
+  createdAt         DateTime     @default(now())
+  updatedAt         DateTime     @updatedAt
+
+  resolver User? @relation("FeedbackResolver", fields: [resolvedBy], references: [id])
+
+  @@index([feedbackType])
+  @@index([submittedDate])
+  @@index([resolved])
+  @@index([priority])
+  @@index([status])
+}
