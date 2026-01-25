@@ -7,6 +7,8 @@ import { Badge } from "@/components/ui/Badge";
 import Link from "next/link";
 import AdminCharts from "@/components/dashboard/AdminCharts";
 
+const COLORS = ["#dc2626", "#ea580c", "#eab308", "#22c55e", "#3b82f6", "#8b5cf6"];
+
 export default async function AdminDashboard() {
   await requireRole([UserRole.ADMIN]);
   const user = await getCurrentUser();
@@ -318,36 +320,37 @@ export default async function AdminDashboard() {
             ) : (
               <div className="space-y-3">
                 {recentUsers.map((u) => (
-                <div
-                  key={u.id}
-                  className="flex items-center justify-between p-3 bg-gray-50 rounded-lg"
-                >
-                  <div className="flex items-center gap-3">
-                    <div className="w-10 h-10 rounded-full bg-green-100 flex items-center justify-center text-green-700 font-semibold">
-                      {u.name?.charAt(0) || "U"}
+                  <div
+                    key={u.id}
+                    className="flex items-center justify-between p-3 bg-gray-50 rounded-lg"
+                  >
+                    <div className="flex items-center gap-3">
+                      <div className="w-10 h-10 rounded-full bg-green-100 flex items-center justify-center text-green-700 font-semibold">
+                        {u.name?.charAt(0) || "U"}
+                      </div>
+                      <div>
+                        <p className="font-medium text-gray-900">{u.name}</p>
+                        <p className="text-sm text-gray-600">{u.email}</p>
+                      </div>
                     </div>
-                    <div>
-                      <p className="font-medium text-gray-900">{u.name}</p>
-                      <p className="text-sm text-gray-600">{u.email}</p>
+                    <div className="flex items-center gap-2">
+                      <Badge variant="info" size="sm">
+                        {u.role}
+                      </Badge>
+                      {u.isActive ? (
+                        <Badge variant="success" size="sm">
+                          Active
+                        </Badge>
+                      ) : (
+                        <Badge variant="danger" size="sm">
+                          Inactive
+                        </Badge>
+                      )}
                     </div>
                   </div>
-                  <div className="flex items-center gap-2">
-                    <Badge variant="info" size="sm">
-                      {u.role}
-                    </Badge>
-                    {u.isActive ? (
-                      <Badge variant="success" size="sm">
-                        Active
-                      </Badge>
-                    ) : (
-                      <Badge variant="danger" size="sm">
-                        Inactive
-                      </Badge>
-                    )}
-                  </div>
-                </div>
-              ))}
-            </div>
+                ))}
+              </div>
+            )}
           </CardContent>
         </Card>
       </div>
