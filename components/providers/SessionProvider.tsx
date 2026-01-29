@@ -14,9 +14,10 @@ export default function SessionProvider({ children }: { children: ReactNode }) {
       const errorMessage = args[0]?.toString() || "";
       if (
         errorMessage.includes("[next-auth][error][CLIENT_FETCH_ERROR]") ||
-        errorMessage.includes("CLIENT_FETCH_ERROR")
+        errorMessage.includes("CLIENT_FETCH_ERROR") ||
+        errorMessage.includes("SSE error:")
       ) {
-        // Suppress this specific harmless error
+        // Suppress these specific harmless errors (NextAuth client fetch + SSE reconnect noise)
         return;
       }
       originalError.apply(console, args);

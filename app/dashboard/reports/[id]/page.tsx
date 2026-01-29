@@ -65,6 +65,15 @@ interface FieldReport {
   }>;
 }
 
+function formatEnum(value: string | null | undefined): string {
+  if (!value) return "";
+  return value
+    .toLowerCase()
+    .split("_")
+    .map((part) => part.charAt(0).toUpperCase() + part.slice(1))
+    .join(" ");
+}
+
 export default function ReportDetailPage() {
   const params = useParams();
   const router = useRouter();
@@ -72,6 +81,7 @@ export default function ReportDetailPage() {
   const [report, setReport] = useState<FieldReport | null>(null);
   const [loading, setLoading] = useState(true);
   const [verifying, setVerifying] = useState(false);
+  const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
     fetchReportDetails();
@@ -79,11 +89,28 @@ export default function ReportDetailPage() {
 
   const fetchReportDetails = async () => {
     try {
+      setLoading(true);
+      setError(null);
+
       const response = await fetch(`/api/reports/${params.id}`);
+
+      if (!response.ok) {
+        if (response.status === 404) {
+          setError("Report not found.");
+        } else if (response.status === 403) {
+          setError("You do not have permission to view this report.");
+        } else {
+          setError("Failed to load report details. Please try again.");
+        }
+        setReport(null);
+        return;
+      }
+
       const data = await response.json();
-      setReport(data.report);
+      setReport(data.report ?? null);
     } catch (error) {
       console.error("Error fetching report details:", error);
+      setError("Failed to load report details. Please check your connection and try again.");
     } finally {
       setLoading(false);
     }
@@ -128,11 +155,13 @@ export default function ReportDetailPage() {
     );
   }
 
-  if (!report) {
+  if (error || !report) {
     return (
       <div className="flex items-center justify-center min-h-screen">
         <div className="text-center">
-          <p className="text-gray-600 mb-4">Report not found</p>
+          <p className="text-gray-600 mb-4">
+            {error || "Report not found."}
+          </p>
           <Link href="/dashboard/reports">
             <Button>Back to Reports</Button>
           </Link>
@@ -142,6 +171,23 @@ export default function ReportDetailPage() {
   }
 
   const canVerify = session?.user?.role === "ADMIN" || session?.user?.role === "GOVERNMENT_OFFICIAL";
+  const hasValidCoordinates =
+    typeof report.latitude === "number" &&
+    typeof report.longitude === "number" &&
+    Number.isFinite(report.latitude) &&
+    Number.isFinite(report.longitude);
+
+  const evidencePhotos = Array.isArray(report.evidencePhotos)
+    ? report.evidencePhotos
+    : [];
+
+  const evidenceCollections = Array.isArray(report.evidenceCollections)
+    ? report.evidenceCollections
+    : [];
+
+  const deforestationAlerts = Array.isArray(report.deforestationAlerts)
+    ? report.deforestationAlerts
+    : [];
 
   return (
     <div className="space-y-6">
@@ -193,7 +239,7 @@ export default function ReportDetailPage() {
               <div className="grid grid-cols-2 gap-4">
                 <div>
                   <p className="text-sm text-gray-600">Report Type</p>
-                  <p className="font-medium">{report.reportType}</p>
+                  <p className="font-medium">{formatEnum(report.reportType)}</p>
                 </div>
                 <div>
                   <p className="text-sm text-gray-600">Visit Date</p>
@@ -247,7 +293,7 @@ export default function ReportDetailPage() {
               </CardHeader>
               <CardContent>
                 <div className="grid grid-cols-2 gap-4">
-                  {report.estimatedAreaLoss && (
+                  {typeof report.estimatedAreaLoss === "number" && !isNaN(report.estimatedAreaLoss) && (
                     <div>
                       <p className="text-sm text-gray-600">Estimated Area Loss</p>
                       <p className="font-medium">{report.estimatedAreaLoss.toFixed(2)} hectares</p>
@@ -256,7 +302,7 @@ export default function ReportDetailPage() {
                   {report.cause && (
                     <div>
                       <p className="text-sm text-gray-600">Cause</p>
-                      <p className="font-medium">{report.cause.replace(/_/g, " ")}</p>
+                      <p className="font-medium">{formatEnum(report.cause)}</p>
                     </div>
                   )}
                 </div>
@@ -265,14 +311,14 @@ export default function ReportDetailPage() {
           )}
 
           {/* Evidence Photos */}
-          {report.evidencePhotos.length > 0 && (
+          {evidencePhotos.length > 0 && (
             <Card>
               <CardHeader>
                 <CardTitle>Evidence Photos ({report.evidencePhotos.length})</CardTitle>
               </CardHeader>
               <CardContent>
                 <div className="grid grid-cols-2 md:grid-cols-3 gap-4">
-                  {report.evidencePhotos.map((photo, index) => (
+                  {evidencePhotos.map((photo, index) => (
                     <div key={index} className="relative">
                       <img
                         src={photo}
@@ -288,18 +334,18 @@ export default function ReportDetailPage() {
           )}
 
           {/* Evidence Collections */}
-          {report.evidenceCollections.length > 0 && (
+          {evidenceCollections.length > 0 && (
             <Card>
               <CardHeader>
                 <CardTitle>Evidence Collections ({report.evidenceCollections.length})</CardTitle>
               </CardHeader>
               <CardContent>
                 <div className="space-y-4">
-                  {report.evidenceCollections.map((evidence) => (
+                  {evidenceCollections.map((evidence) => (
                     <div key={evidence.id} className="p-4 bg-gray-50 rounded-lg">
                       <div className="flex items-center justify-between mb-2">
                         <p className="font-medium text-gray-900">
-                          {evidence.evidenceType.replace(/_/g, " ")}
+                          {formatEnum(evidence.evidenceType)}
                         </p>
                         <p className="text-sm text-gray-500">
                           {new Date(evidence.collectedDate).toLocaleDateString()}
@@ -332,14 +378,14 @@ export default function ReportDetailPage() {
           )}
 
           {/* Related Alerts */}
-          {report.deforestationAlerts.length > 0 && (
+          {deforestationAlerts.length > 0 && (
             <Card>
               <CardHeader>
                 <CardTitle>Related Alerts ({report.deforestationAlerts.length})</CardTitle>
               </CardHeader>
               <CardContent>
                 <div className="space-y-2">
-                  {report.deforestationAlerts.map((alert) => (
+                  {deforestationAlerts.map((alert) => (
                     <Link
                       key={alert.id}
                       href={`/dashboard/alerts/${alert.id}`}
@@ -357,7 +403,7 @@ export default function ReportDetailPage() {
                           }
                           size="sm"
                         >
-                          {alert.severity}
+                          {formatEnum(alert.severity)}
                         </Badge>
                       </div>
                     </Link>
@@ -368,43 +414,45 @@ export default function ReportDetailPage() {
           )}
 
           {/* Location Map */}
-          <Card>
-            <CardHeader>
-              <CardTitle>Report Location</CardTitle>
-            </CardHeader>
-            <CardContent className="p-0">
-              <MapComponent
-                center={[report.latitude, report.longitude]}
-                zoom={15}
-                className="h-[400px] w-full"
-                onMapReady={(map) => {
-                  const L = require("leaflet");
-                  L.marker([report.latitude, report.longitude])
-                    .addTo(map)
-                    .bindPopup(`Report: ${report.reportCode}`)
-                    .openPopup();
-                  
-                  if (report.accuracy) {
-                    L.circle([report.latitude, report.longitude], {
-                      radius: report.accuracy,
-                      color: "#22c55e",
-                      fillOpacity: 0.2,
-                    }).addTo(map);
-                  }
-                }}
-              />
-              <div className="p-4 border-t">
-                <p className="text-sm text-gray-600">
-                  Coordinates: {report.latitude.toFixed(6)}, {report.longitude.toFixed(6)}
-                </p>
-                {report.accuracy && (
+          {hasValidCoordinates && (
+            <Card>
+              <CardHeader>
+                <CardTitle>Report Location</CardTitle>
+              </CardHeader>
+              <CardContent className="p-0">
+                <MapComponent
+                  center={[report.latitude, report.longitude]}
+                  zoom={15}
+                  className="h-[400px] w-full"
+                  onMapReady={(map) => {
+                    const L = require("leaflet");
+                    L.marker([report.latitude, report.longitude])
+                      .addTo(map)
+                      .bindPopup(`Report: ${report.reportCode}`)
+                      .openPopup();
+                    
+                    if (typeof report.accuracy === "number" && !isNaN(report.accuracy)) {
+                      L.circle([report.latitude, report.longitude], {
+                        radius: report.accuracy,
+                        color: "#22c55e",
+                        fillOpacity: 0.2,
+                      }).addTo(map);
+                    }
+                  }}
+                />
+                <div className="p-4 border-t">
                   <p className="text-sm text-gray-600">
-                    GPS Accuracy: ±{report.accuracy.toFixed(0)} meters
+                    Coordinates: {report.latitude.toFixed(6)}, {report.longitude.toFixed(6)}
                   </p>
-                )}
-              </div>
-            </CardContent>
-          </Card>
+                  {typeof report.accuracy === "number" && !isNaN(report.accuracy) && (
+                    <p className="text-sm text-gray-600">
+                      GPS Accuracy: ±{report.accuracy.toFixed(0)} meters
+                    </p>
+                  )}
+                </div>
+              </CardContent>
+            </Card>
+          )}
         </div>
 
         {/* Sidebar */}
