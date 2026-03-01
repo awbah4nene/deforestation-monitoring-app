@@ -32,18 +32,9 @@ export async function GET(request: NextRequest) {
       where.forestRegionId = regionId;
     }
 
-    // Get alerts with area data
+    // Get alerts with area data (use select only; include + select is invalid in Prisma)
     const alerts = await prisma.deforestationAlert.findMany({
       where,
-      include: {
-        forestRegion: {
-          select: {
-            id: true,
-            name: true,
-            district: true,
-          },
-        },
-      },
       select: {
         id: true,
         areaHectares: true,
@@ -86,11 +77,12 @@ export async function GET(request: NextRequest) {
 
       // By region
       const regionId = alert.forestRegionId;
+      const region = alert.forestRegion;
       if (!byRegion[regionId]) {
         byRegion[regionId] = {
           regionId,
-          regionName: alert.forestRegion.name,
-          district: alert.forestRegion.district,
+          regionName: region?.name ?? "Unknown",
+          district: region?.district ?? "",
           areaLost: 0,
           carbonLost: 0,
         };

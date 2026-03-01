@@ -181,12 +181,29 @@ export default function MapDashboard() {
     fetchData();
   }, [fetchData]);
 
-  // Clear existing layers
-  const clearLayers = useCallback(() => {
-    regionLayersRef.current.forEach((layer) => layer.remove());
-    alertMarkersRef.current.forEach((marker) => marker.remove());
+  // Clear existing layers (close popups first to avoid Leaflet _leaflet_pos errors)
+  const clearLayers = useCallback((map: L.Map | null) => {
+    if (!map || !map.getContainer()?.parentElement) return;
+    try {
+      map.closePopup();
+    } catch (_) {}
+    const regions = regionLayersRef.current;
+    const markers = alertMarkersRef.current;
     regionLayersRef.current = [];
     alertMarkersRef.current = [];
+    regions.forEach((layer) => {
+      try {
+        if (layer && (layer as any)._map) layer.remove();
+      } catch (_) {}
+    });
+    markers.forEach((marker) => {
+      try {
+        if (marker && (marker as any)._map) {
+          marker.closePopup?.();
+          marker.remove();
+        }
+      } catch (_) {}
+    });
   }, []);
 
   // Separate function to render layers
@@ -203,7 +220,7 @@ export default function MapDashboard() {
       return;
     }
 
-    clearLayers();
+    clearLayers(mapInstance);
 
     // Add region boundaries
     if (showRegions) {
@@ -499,7 +516,7 @@ export default function MapDashboard() {
   };
 
   return (
-    <div className="min-h-[calc(100vh-120px)] flex flex-col w-full overflow-hidden">
+    <div className="h-[calc(100vh-8rem)] flex flex-col w-full overflow-hidden max-h-[calc(100vh-8rem)]">
       {/* Header */}
       <div className="flex items-center justify-between mb-4">
         <div>

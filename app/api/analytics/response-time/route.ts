@@ -17,7 +17,7 @@ export async function GET(request: NextRequest) {
     const start = startDate ? new Date(startDate) : new Date(Date.now() - 365 * 24 * 60 * 60 * 1000);
     const end = endDate ? new Date(endDate) : new Date();
 
-    // Get alerts with status changes
+    // Get alerts with status changes (use updatedAt; statusUpdatedAt does not exist on schema)
     const alerts = await prisma.deforestationAlert.findMany({
       where: {
         detectedDate: {
@@ -32,21 +32,21 @@ export async function GET(request: NextRequest) {
         id: true,
         detectedDate: true,
         status: true,
-        statusUpdatedAt: true,
+        updatedAt: true,
         severity: true,
         forestRegionId: true,
       },
     });
 
-    // Calculate response times
+    // Calculate response times (detectedDate -> updatedAt = time to first update)
     const responseTimes: number[] = [];
     const bySeverity: Record<string, number[]> = {};
     const byRegion: Record<string, number[]> = {};
 
     alerts.forEach((alert) => {
-      if (alert.statusUpdatedAt) {
+      if (alert.updatedAt) {
         const detected = new Date(alert.detectedDate).getTime();
-        const updated = new Date(alert.statusUpdatedAt).getTime();
+        const updated = new Date(alert.updatedAt).getTime();
         const responseTime = (updated - detected) / (1000 * 60 * 60); // Hours
 
         responseTimes.push(responseTime);

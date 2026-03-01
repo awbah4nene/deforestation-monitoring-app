@@ -4,6 +4,13 @@ import { useEffect, useRef, useState } from "react";
 import L from "leaflet";
 import "leaflet/dist/leaflet.css";
 
+// Store onMapReady in a ref so map init effect doesn't depend on it (avoids re-create loops)
+function useStableCallback<T extends (...args: any[]) => void>(cb: T): T {
+  const ref = useRef(cb);
+  ref.current = cb;
+  return useRef(((...args: Parameters<T>) => ref.current(...args)) as T).current;
+}
+
 interface MapComponentProps {
   center?: [number, number];
   zoom?: number;
@@ -57,6 +64,7 @@ export default function MapComponent({
   const containerRef = useRef<HTMLDivElement>(null);
   const tileLayerRef = useRef<L.TileLayer | null>(null);
   const [activeLayer, setActiveLayer] = useState<TileLayerType>("street");
+  const onMapReadyStable = useStableCallback(onMapReady ?? (() => {}));
 
   useEffect(() => {
     if (!containerRef.current || mapRef.current) return;
@@ -81,19 +89,22 @@ export default function MapComponent({
     tileLayerRef.current = initialLayer;
     mapRef.current = map;
 
-    // Call onMapReady callback
-    if (onMapReady) {
-      onMapReady(map);
-    }
+    // Call onMapReady callback (stable ref, no dependency)
+    onMapReadyStable(map);
 
     // Cleanup
     return () => {
       if (mapRef.current) {
-        mapRef.current.remove();
+        try {
+          mapRef.current.closePopup();
+        } catch (_) {}
+        try {
+          mapRef.current.remove();
+        } catch (_) {}
         mapRef.current = null;
       }
     };
-  }, [center, zoom, onMapReady]);
+  }, [center, zoom]); // Intentionally omit onMapReady to avoid map re-creation loops
 
   // Handle layer change
   const handleLayerChange = (layerType: TileLayerType) => {
